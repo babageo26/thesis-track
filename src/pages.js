@@ -2,14 +2,13 @@
 //  pages.js — Page rendering functions (Dashboard → IGLPIS)
 // ============================================================
 
-import { state, persist }                       from './state.js';
+import { state }                                from './state.js';
 import { overallProgress, deadlineLabel,
          journalIcon, groupByPhase, today }      from './utils.js';
 import { openQuickNote, openJurnalModal,
          openMilestoneModal, openRefModal,
          openIglpisModal, openCompNote,
-         handleTagKey, handleAlgoKey,
-         selectColor, closeModal }               from './modals.js';
+         updateIglpisStatus }                    from './modals.js';
 import { navigate }                              from './main.js';
 
 // ── Shared helpers ───────────────────────────────────────────
@@ -412,8 +411,7 @@ export function renderIglpis(c) {
   // status select inline
   c.querySelectorAll('.status-select[data-cid]').forEach(sel => {
     sel.addEventListener('change', async () => {
-      const comp = state.iglpis.find(x => x.id === sel.dataset.cid);
-      if (comp) { comp.status = sel.value; await persist('iglpis'); renderIglpis(c); }
+      await updateIglpisStatus(sel.dataset.cid, sel.value);
     });
   });
 

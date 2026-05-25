@@ -1,6 +1,13 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [react()],
-})
+  // Sesuaikan base dengan nama repo GitHub kamu
+  // Contoh: repo bernama "thesis-track" → base: '/thesis-track/'
+  // Jika custom domain → base: '/'
+  base: '/thesis-track/',
+
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
+});

@@ -1,74 +1,31 @@
 // ============================================================
-//  db.js — Default data & localStorage persistence layer
-//  ThesisTrack · IGLPIS Framework
+//  db.js — Default data (seed) untuk Firestore
+//  ThesisTrack · IGLPIS
 // ============================================================
 //
-//  SCHEMA OVERVIEW
-//  ───────────────
-//  localStorage keys:
-//    "tt_iglpis"     → Array<IglpisComponent>
-//    "tt_milestones" → Array<Milestone>
-//    "tt_jurnal"     → Array<JurnalEntry>
-//    "tt_refs"       → Array<Referensi>
-//    "tt_notes"      → Array<QuickNote>
+//  File ini hanya berisi data default yang akan di-seed ke
+//  Firestore pada saat user pertama kali login.
+//  Tidak ada localStorage di sini — semua persistence via Firebase.
 //
-//  IglpisComponent {
-//    id        : string        — e.g. "4.5"
-//    phase     : string        — display name of phase
-//    phaseNum  : number        — for sort order
-//    title     : string
-//    desc      : string
-//    algos     : string[]      — algorithm names
-//    status    : "belum" | "riset" | "dikerjakan" | "testing" | "selesai"
-//    llm       : boolean       — does this component use an LLM?
-//    note      : string        — implementation notes
-//  }
+//  FIRESTORE SCHEMA
+//  ─────────────────
+//  users/{uid}/iglpis/{id}      → IglpisComponent
+//  users/{uid}/milestones/{id}  → Milestone
+//  users/{uid}/jurnal/{id}      → JurnalEntry
+//  users/{uid}/refs/{id}        → Referensi
+//  users/{uid}/notes/{id}       → QuickNote
 //
-//  Milestone {
-//    id       : string
-//    title    : string
-//    desc     : string
-//    deadline : string         — ISO date "YYYY-MM-DD"
-//    progress : number         — 0–100
-//    color    : string         — hex color
-//  }
-//
-//  JurnalEntry {
-//    id    : string
-//    title : string
-//    body  : string
-//    date  : string            — ISO date
-//  }
-//
-//  Referensi {
-//    id     : string
-//    title  : string
-//    author : string
-//    year   : string | number
-//    url    : string
-//    tags   : string[]
-//    note   : string
-//  }
-//
-//  QuickNote {
-//    id    : string
-//    title : string
-//    body  : string
-//    tags  : string[]
-//    color : string            — hex
-//    date  : string            — ISO date
-//  }
 // ============================================================
 
-export const STORAGE_KEYS = {
-  iglpis:     'tt_iglpis',
-  milestones: 'tt_milestones',
-  jurnal:     'tt_jurnal',
-  refs:       'tt_refs',
-  notes:      'tt_notes',
-};
+export function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
 
-// ── Default IGLPIS components (from full_framework.pdf) ──────
+export function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ── Default IGLPIS (25 komponen dari full_framework.pdf) ──────
 export const DEFAULT_IGLPIS = [
   {
     id: '1.0', phase: 'Phase 1 — Upload & Job Management', phaseNum: 1,
@@ -101,14 +58,14 @@ export const DEFAULT_IGLPIS = [
   {
     id: '4.4', phase: 'Phase 4 — SU Page 2 Spatial Pipeline', phaseNum: 4,
     title: 'Image Enhancement',
-    desc: 'Gamma correction, contrast adjustment, histogram normalization untuk garis kadaster',
+    desc: 'Gamma correction, contrast adjustment, histogram normalization untuk garis kadaster tipis',
     algos: ['Gamma correction', 'Contrast adjustment', 'Histogram normalization'],
     status: 'belum', llm: false, note: ''
   },
   {
     id: '4.5', phase: 'Phase 4 — SU Page 2 Spatial Pipeline', phaseNum: 4,
     title: 'SAM Segmentation',
-    desc: 'Segment Anything Model untuk menghasilkan binary mask polygon',
+    desc: 'Segment Anything Model untuk menghasilkan binary mask polygon kadaster',
     algos: ['Segment Anything Model', 'Seed-based segmentation'],
     status: 'belum', llm: false, note: ''
   },
@@ -136,7 +93,7 @@ export const DEFAULT_IGLPIS = [
   {
     id: '4.9', phase: 'Phase 4 — SU Page 2 Spatial Pipeline', phaseNum: 4,
     title: 'Internal Quality Evaluation',
-    desc: 'Skor reliabilitas sketch berdasarkan area diff, intersection check, precision/recall proxy',
+    desc: 'Skor reliabilitas sketch: area diff, intersection check, precision/recall proxy',
     algos: ['Area difference', 'Intersection check', 'Precision/Recall proxy'],
     status: 'belum', llm: false, note: ''
   },
@@ -150,21 +107,21 @@ export const DEFAULT_IGLPIS = [
   {
     id: '4.11', phase: 'Phase 5 — Buku Tanah Pipeline', phaseNum: 5,
     title: 'Boundary Semantic Parsing',
-    desc: 'Ekstraksi semantik batas: utara sungai, timur jalan desa, dll.',
+    desc: 'Ekstraksi semantik batas: utara sungai, timur jalan desa',
     algos: ['Prompt-based relation extraction'],
     status: 'belum', llm: true, note: ''
   },
   {
     id: '6.0', phase: 'Phase 6 — Constraint Consolidation', phaseNum: 6,
     title: 'Constraint Consolidation',
-    desc: 'Gabungkan metadata, shape features, reliability score, boundary semantics menjadi Unified Constraint JSON',
+    desc: 'Gabungkan metadata, shape features, reliability score, boundary semantics → Unified Constraint JSON',
     algos: ['Entity resolution', 'Synonym normalization'],
     status: 'belum', llm: true, note: ''
   },
   {
     id: '7.0', phase: 'Phase 7 — Prior Precomputation', phaseNum: 7,
     title: 'Prior Precomputation (Offline)',
-    desc: 'KDE dan GMM per desa untuk prior raster · prior_raster_desa.tif',
+    desc: 'KDE dan GMM per desa untuk prior raster · output: prior_raster_desa.tif',
     algos: ['Kernel Density Estimation', 'Gaussian Mixture Model', 'Analog block density'],
     status: 'belum', llm: false, note: ''
   },
@@ -178,7 +135,7 @@ export const DEFAULT_IGLPIS = [
   {
     id: '4.12', phase: 'Phase 9 — Bayesian Inference Engine', phaseNum: 9,
     title: 'Likelihood Computation',
-    desc: 'Hitung AreaLikelihood, BoundaryLikelihood, ShapeLikelihood, OrientationLikelihood, AnalogLikelihood per sel grid',
+    desc: 'Hitung AreaLikelihood, BoundaryLikelihood, ShapeLikelihood, OrientationLikelihood, AnalogLikelihood per grid cell',
     algos: ['Probabilistic scoring', 'Spatial likelihood functions'],
     status: 'belum', llm: false, note: ''
   },
@@ -192,14 +149,14 @@ export const DEFAULT_IGLPIS = [
   {
     id: '4.14', phase: 'Phase 9 — Bayesian Inference Engine', phaseNum: 9,
     title: 'MAP Estimation',
-    desc: 'L_MAP = argmax Posterior',
+    desc: 'L_MAP = argmax Posterior(L)',
     algos: ['Maximum A Posteriori'],
     status: 'belum', llm: false, note: ''
   },
   {
     id: '4.15', phase: 'Phase 9 — Bayesian Inference Engine', phaseNum: 9,
     title: 'Credible Region Extraction',
-    desc: 'Sort grid by posterior desc, accumulate until α level (50/75/90/95%), raster to polygon',
+    desc: 'Sort grid by posterior desc, accumulate until α (50/75/90/95%), raster to polygon',
     algos: ['Credible interval accumulation', 'Raster to vector'],
     status: 'belum', llm: false, note: ''
   },
@@ -213,7 +170,7 @@ export const DEFAULT_IGLPIS = [
   {
     id: '10.0', phase: 'Phase 10 — Result Storage', phaseNum: 10,
     title: 'Result Storage & Caching',
-    desc: 'Simpan MAP point, posterior raster, credible region polygons, evidence summary · Cache Redis',
+    desc: 'Simpan MAP point, posterior raster, credible region polygons · Cache Redis',
     algos: ['Redis caching', 'GeoJSON storage', 'Raster store'],
     status: 'belum', llm: false, note: ''
   },
@@ -234,43 +191,43 @@ export const DEFAULT_IGLPIS = [
   {
     id: '7.x', phase: 'Phase 7 — LLM Orchestration Layer', phaseNum: 7,
     title: 'LLM as Conversational Orchestrator',
-    desc: 'Chat-driven UI · LLM narasikan status backend · constraint clarification via chat · what-if simulation',
+    desc: 'Chat-driven UI · LLM narasikan status backend · constraint clarification · what-if simulation',
     algos: ['Prompt engineering', 'State machine chat', 'Async status narration'],
     status: 'belum', llm: true, note: ''
   },
   {
     id: 'OPT', phase: 'Optional — Explanation Generation', phaseNum: 13,
     title: 'Natural Language Explanation',
-    desc: 'LLM generate narasi penjelasan hasil Bayesian per klik tombol "Explain Result"',
+    desc: 'LLM generate narasi penjelasan hasil Bayesian per klik "Explain Result"',
     algos: ['Narrative generation', 'Evidence summarization'],
     status: 'belum', llm: true, note: ''
   },
 ];
 
 export const DEFAULT_MILESTONES = [
-  { id: 'm1', title: 'Bab 2 — Tinjauan Pustaka',         desc: '', deadline: '2026-05-20', progress: 65, color: '#7C3AED' },
-  { id: 'm2', title: 'Bab 3 — Metodologi',               desc: '', deadline: '2026-05-22', progress: 20, color: '#2563EB' },
+  { id: 'm1', title: 'Bab 2 — Tinjauan Pustaka',          desc: '', deadline: '2026-05-20', progress: 65, color: '#7C3AED' },
+  { id: 'm2', title: 'Bab 3 — Metodologi',                desc: '', deadline: '2026-05-22', progress: 20, color: '#2563EB' },
   { id: 'm3', title: 'Bab 4 — Implementasi & Eksperimen', desc: '', deadline: '2026-05-25', progress: 5,  color: '#16A34A' },
-  { id: 'm4', title: 'Bab 5 — Kesimpulan',               desc: '', deadline: '2026-06-10', progress: 0,  color: '#D97706' },
-  { id: 'm5', title: 'Sidang Tesis',                      desc: 'Presentasi akhir tesis', deadline: '2026-07-01', progress: 0, color: '#DC2626' },
-  { id: 'm6', title: 'Revisi & Pengumpulan',              desc: '', deadline: '2026-07-15', progress: 0,  color: '#7C3AED' },
+  { id: 'm4', title: 'Bab 5 — Kesimpulan',                desc: '', deadline: '2026-06-10', progress: 0,  color: '#D97706' },
+  { id: 'm5', title: 'Sidang Tesis',                       desc: 'Presentasi akhir tesis', deadline: '2026-07-01', progress: 0, color: '#DC2626' },
+  { id: 'm6', title: 'Revisi & Pengumpulan',               desc: '', deadline: '2026-07-15', progress: 0,  color: '#7C3AED' },
 ];
 
 export const DEFAULT_JURNAL = [
   {
-    id: 'j1', title: 'Mulai eksplorasi dataset BERT',
-    body: 'Mengeksplorasi dataset untuk fine-tuning BERT. Mencoba beberapa preprocessing approach.',
-    date: '2026-05-20'
+    id: 'j1', date: '2026-05-20',
+    title: 'Mulai eksplorasi dataset BERT',
+    body:  'Mengeksplorasi dataset untuk fine-tuning BERT. Mencoba beberapa preprocessing approach.',
   },
   {
-    id: 'j2', title: 'Debugging model — loss tidak konvergen',
-    body: 'Loss masih tidak konvergen setelah 10 epoch. Perlu cek learning rate scheduler dan batch size.',
-    date: '2026-05-21'
+    id: 'j2', date: '2026-05-21',
+    title: 'Debugging model — loss tidak konvergen',
+    body:  'Loss masih tidak konvergen setelah 10 epoch. Perlu cek learning rate scheduler dan batch size.',
   },
   {
-    id: 'j3', title: 'Review paper IGLPIS framework',
-    body: 'Membaca ulang full_framework.pdf dan memetakan setiap fase ke task implementasi.',
-    date: '2026-05-22'
+    id: 'j3', date: '2026-05-22',
+    title: 'Review paper IGLPIS framework',
+    body:  'Membaca ulang full_framework.pdf dan memetakan setiap fase ke task implementasi.',
   },
 ];
 
@@ -280,71 +237,39 @@ export const DEFAULT_REFS = [
     author: 'Kirillov et al.', year: '2023',
     url: 'https://arxiv.org/abs/2304.02643',
     tags: ['segmentation', 'vision'],
-    note: 'Foundation model untuk segmentasi interaktif. Relevan untuk Phase 4.5'
+    note: 'Foundation model untuk segmentasi interaktif. Relevan untuk Phase 4.5',
   },
   {
     id: 'r2', title: 'Bayesian Spatial Inference for Cadastral Systems',
     author: 'Smith et al.', year: '2021',
     url: '', tags: ['bayesian', 'cadastral'],
-    note: 'Pendekatan Bayesian untuk inferensi posisi kadaster berbasis evidence.'
+    note: 'Pendekatan Bayesian untuk inferensi posisi kadaster berbasis evidence.',
   },
   {
     id: 'r3', title: 'Pattern Recognition and Machine Learning',
     author: 'Bishop, C.', year: '2006',
     url: '', tags: ['GMM', 'prior', 'bayesian'],
-    note: 'Reference klasik untuk GMM, digunakan di Phase 7 prior precomputation.'
+    note: 'Reference klasik untuk GMM, digunakan di Phase 7.',
   },
 ];
 
 export const DEFAULT_NOTES = [
   {
-    id: 'n1', title: 'Ide: Hybrid attention mechanism',
-    body: 'Coba gabungkan spatial attention dengan semantic attention untuk likelihood computation',
-    tags: ['ide', 'algoritma'], color: '#7C3AED', date: '2026-05-21'
+    id: 'n1', date: '2026-05-21', color: '#7C3AED',
+    title: 'Ide: Hybrid attention mechanism',
+    body:  'Coba gabungkan spatial attention dengan semantic attention untuk likelihood computation',
+    tags:  ['ide', 'algoritma'],
   },
   {
-    id: 'n2', title: 'TODO: Cek GPU quota',
-    body: 'Pastikan quota GPU cukup untuk SAM inference batch sebelum mulai eksperimen skala penuh',
-    tags: ['todo'], color: '#D97706', date: '2026-05-22'
+    id: 'n2', date: '2026-05-22', color: '#D97706',
+    title: 'TODO: Cek GPU quota',
+    body:  'Pastikan quota GPU cukup untuk SAM inference batch sebelum mulai eksperimen skala penuh',
+    tags:  ['todo'],
   },
   {
-    id: 'n3', title: 'Formula F1-score weighted',
-    body: 'F1 = 2 * (precision * recall) / (precision + recall) — gunakan weighted untuk kelas imbalance',
-    tags: ['formula'], color: '#2563EB', date: '2026-05-22'
+    id: 'n3', date: '2026-05-22', color: '#2563EB',
+    title: 'Formula F1-score weighted',
+    body:  'F1 = 2 * (precision * recall) / (precision + recall) — gunakan weighted untuk kelas imbalance',
+    tags:  ['formula'],
   },
 ];
-
-// ── Persistence helpers ──────────────────────────────────────
-export function loadAll() {
-  const load = (key, fallback) => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(fallback));
-    } catch {
-      return JSON.parse(JSON.stringify(fallback));
-    }
-  };
-  return {
-    iglpis:     load(STORAGE_KEYS.iglpis,     DEFAULT_IGLPIS),
-    milestones: load(STORAGE_KEYS.milestones, DEFAULT_MILESTONES),
-    jurnal:     load(STORAGE_KEYS.jurnal,     DEFAULT_JURNAL),
-    refs:       load(STORAGE_KEYS.refs,       DEFAULT_REFS),
-    notes:      load(STORAGE_KEYS.notes,      DEFAULT_NOTES),
-  };
-}
-
-export function saveKey(key, data) {
-  try {
-    localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(data));
-  } catch (e) {
-    console.warn('Storage error:', e);
-  }
-}
-
-export function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-export function today() {
-  return new Date().toISOString().split('T')[0];
-}

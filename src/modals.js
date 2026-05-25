@@ -1,17 +1,17 @@
 // ============================================================
-//  modals.js — Modal open/close + form helpers
+//  modals.js — Modal open/close + form save/delete
+//  ThesisTrack · Firebase version
 // ============================================================
 
-import { state, persist } from './state.js';
-import { uid, today }     from './utils.js';
-import { render }         from './main.js';
+import { state, persistSet, persistDelete } from './state.js';
+import { uid, today }                       from './db.js';
 
 // ── Tag helpers ──────────────────────────────────────────────
 const tempTags  = { qn: [], ref: [] };
 let   tempAlgos = [];
 
-export function getTempTags(ctx)  { return tempTags[ctx]; }
-export function getTempAlgos()    { return tempAlgos; }
+export function getTempTags(ctx) { return tempTags[ctx]; }
+export function getTempAlgos()   { return tempAlgos; }
 
 function renderTagsUI(ctx) {
   const wrapId  = ctx === 'qn' ? 'qn-tags-wrap'  : 'ref-tags-wrap';
@@ -19,17 +19,13 @@ function renderTagsUI(ctx) {
   const wrap  = document.getElementById(wrapId);
   const input = document.getElementById(inputId);
   if (!wrap || !input) return;
-
-  // remove all chips (keep the input)
   [...wrap.querySelectorAll('.tag-chip')].forEach(c => c.remove());
-
   tempTags[ctx].forEach(tag => {
     const chip = document.createElement('div');
     chip.className = 'tag-chip';
-    chip.innerHTML = `${tag} <span class="remove-tag" data-tag="${tag}" data-ctx="${ctx}">×</span>`;
+    chip.innerHTML = tag + ' <span class="remove-tag" data-tag="' + tag + '" data-ctx="' + ctx + '">×</span>';
     wrap.insertBefore(chip, input);
   });
-
   wrap.querySelectorAll('.remove-tag').forEach(el => {
     el.addEventListener('click', () => {
       tempTags[ctx] = tempTags[ctx].filter(t => t !== el.dataset.tag);
@@ -46,7 +42,7 @@ function renderAlgosUI() {
   tempAlgos.forEach(algo => {
     const chip = document.createElement('div');
     chip.className = 'algo-chip';
-    chip.innerHTML = `${algo} <button data-algo="${algo}">×</button>`;
+    chip.innerHTML = algo + ' <button data-algo="' + algo + '">×</button>';
     chip.querySelector('button').addEventListener('click', () => {
       tempAlgos = tempAlgos.filter(a => a !== algo);
       renderAlgosUI();
@@ -55,51 +51,40 @@ function renderAlgosUI() {
   });
 }
 
-// ── Open / close ─────────────────────────────────────────────
 export function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
 export function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 
-// backdrop click closes
 export function initBackdrops() {
   document.querySelectorAll('.modal-backdrop').forEach(m => {
     m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
   });
 }
 
-// ── Tag key handler ───────────────────────────────────────────
 export function handleTagKey(e, ctx) {
   if (e.key === 'Enter' || e.key === ',') {
     e.preventDefault();
     const val = e.target.value.trim().replace(',', '');
-    if (val && !tempTags[ctx].includes(val)) {
-      tempTags[ctx].push(val);
-      renderTagsUI(ctx);
-    }
+    if (val && !tempTags[ctx].includes(val)) { tempTags[ctx].push(val); renderTagsUI(ctx); }
     e.target.value = '';
   }
 }
 
-// ── Algo key handler ──────────────────────────────────────────
 export function handleAlgoKey(e) {
   if (e.key === 'Enter') {
     e.preventDefault();
     const val = e.target.value.trim();
-    if (val && !tempAlgos.includes(val)) {
-      tempAlgos.push(val);
-      renderAlgosUI();
-    }
+    if (val && !tempAlgos.includes(val)) { tempAlgos.push(val); renderAlgosUI(); }
     e.target.value = '';
   }
 }
 
-// ── Color selector ────────────────────────────────────────────
-export function selectColor(el, ctx) {
+export function selectColor(el) {
   el.closest('.color-dots').querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
   el.classList.add('selected');
 }
 
 function selectedColor(groupId) {
-  return document.querySelector(`#${groupId} .color-dot.selected`)?.dataset.color || '#7C3AED';
+  return document.querySelector('#' + groupId + ' .color-dot.selected')?.dataset.color || '#7C3AED';
 }
 
 // ── Quick Note ────────────────────────────────────────────────
@@ -115,17 +100,13 @@ export function openQuickNote() {
 export async function saveQuickNote() {
   const body = document.getElementById('qn-body').value.trim();
   if (!body) return;
-  state.notes.unshift({
-    id:    uid(),
-    title: document.getElementById('qn-title').value.trim(),
-    body,
-    tags:  [...tempTags.qn],
-    color: selectedColor('qn-colors'),
-    date:  today(),
-  });
-  await persist('notes');
+  const item = {
+    id: uid(), title: document.getElementById('qn-title').value.trim(),
+    body, tags: [...tempTags.qn], color: selectedColor('qn-colors'), date: today(),
+  };
+  state.notes.unshift(item);
   closeModal('modal-quicknote');
-  render();
+  await persistSet('notes', item);
 }
 
 // ── Jurnal ────────────────────────────────────────────────────
@@ -145,25 +126,24 @@ export function openJurnalModal(id) {
 export async function saveJurnal() {
   const title = document.getElementById('j-title').value.trim();
   if (!title) return;
-  const body  = document.getElementById('j-body').value.trim();
-  const date  = document.getElementById('j-date').value;
+  const item = {
+    id: editingJurnal || uid(), title,
+    body: document.getElementById('j-body').value.trim(),
+    date: document.getElementById('j-date').value,
+  };
   if (editingJurnal) {
-    const j = state.jurnal.find(x => x.id === editingJurnal);
-    if (j) Object.assign(j, { title, body, date });
-  } else {
-    state.jurnal.unshift({ id: uid(), title, body, date });
-  }
-  await persist('jurnal');
+    const idx = state.jurnal.findIndex(x => x.id === editingJurnal);
+    if (idx > -1) state.jurnal[idx] = item;
+  } else { state.jurnal.unshift(item); }
   closeModal('modal-jurnal');
-  render();
+  await persistSet('jurnal', item);
 }
 
 export async function deleteJurnal() {
   if (!editingJurnal) return;
   state.jurnal = state.jurnal.filter(x => x.id !== editingJurnal);
-  await persist('jurnal');
   closeModal('modal-jurnal');
-  render();
+  await persistDelete('jurnal', editingJurnal);
 }
 
 // ── Milestone ─────────────────────────────────────────────────
@@ -177,17 +157,15 @@ export function openMilestoneModal(id) {
   document.getElementById('ms-desc').value     = m?.desc     || '';
   document.getElementById('ms-date').value     = m?.deadline || today();
   document.getElementById('ms-progress').value = m?.progress ?? 0;
-  const pctEl = document.getElementById('ms-pct-label');
-  if (pctEl) pctEl.textContent = (m?.progress ?? 0) + '%';
-  document.getElementById('ms-pct-show').textContent = (m?.progress ?? 0) + '%';
+  document.getElementById('ms-pct-label').textContent = (m?.progress ?? 0) + '%';
+  document.getElementById('ms-pct-show').textContent  = (m?.progress ?? 0) + '%';
   document.getElementById('ms-delete-btn').style.display = m ? 'block' : 'none';
   document.querySelectorAll('#ms-colors .color-dot').forEach(d => {
     d.classList.toggle('selected', d.dataset.color === (m?.color || '#7C3AED'));
   });
-  const range = document.getElementById('ms-progress');
-  range.oninput = function () {
-    document.getElementById('ms-pct-label').textContent  = this.value + '%';
-    document.getElementById('ms-pct-show').textContent   = this.value + '%';
+  document.getElementById('ms-progress').oninput = function() {
+    document.getElementById('ms-pct-label').textContent = this.value + '%';
+    document.getElementById('ms-pct-show').textContent  = this.value + '%';
   };
   openModal('modal-milestone');
 }
@@ -195,30 +173,26 @@ export function openMilestoneModal(id) {
 export async function saveMilestone() {
   const title = document.getElementById('ms-title').value.trim();
   if (!title) return;
-  const entry = {
-    title,
-    desc:     document.getElementById('ms-desc').value.trim(),
+  const item = {
+    id: editingMilestone || uid(), title,
+    desc: document.getElementById('ms-desc').value.trim(),
     deadline: document.getElementById('ms-date').value,
     progress: parseInt(document.getElementById('ms-progress').value),
-    color:    selectedColor('ms-colors'),
+    color: selectedColor('ms-colors'),
   };
   if (editingMilestone) {
-    const m = state.milestones.find(x => x.id === editingMilestone);
-    if (m) Object.assign(m, entry);
-  } else {
-    state.milestones.push({ id: uid(), ...entry });
-  }
-  await persist('milestones');
+    const idx = state.milestones.findIndex(x => x.id === editingMilestone);
+    if (idx > -1) state.milestones[idx] = item;
+  } else { state.milestones.push(item); }
   closeModal('modal-milestone');
-  render();
+  await persistSet('milestones', item);
 }
 
 export async function deleteMilestone() {
   if (!editingMilestone) return;
   state.milestones = state.milestones.filter(x => x.id !== editingMilestone);
-  await persist('milestones');
   closeModal('modal-milestone');
-  render();
+  await persistDelete('milestones', editingMilestone);
 }
 
 // ── Referensi ─────────────────────────────────────────────────
@@ -242,8 +216,8 @@ export function openRefModal(id) {
 export async function saveReferensi() {
   const title = document.getElementById('ref-title').value.trim();
   if (!title) return;
-  const entry = {
-    title,
+  const item = {
+    id: editingRef || uid(), title,
     author: document.getElementById('ref-author').value.trim(),
     year:   document.getElementById('ref-year').value,
     url:    document.getElementById('ref-url').value.trim(),
@@ -251,32 +225,28 @@ export async function saveReferensi() {
     tags:   [...tempTags.ref],
   };
   if (editingRef) {
-    const r = state.refs.find(x => x.id === editingRef);
-    if (r) Object.assign(r, entry);
-  } else {
-    state.refs.push({ id: uid(), ...entry });
-  }
-  await persist('refs');
+    const idx = state.refs.findIndex(x => x.id === editingRef);
+    if (idx > -1) state.refs[idx] = item;
+  } else { state.refs.push(item); }
   closeModal('modal-referensi');
-  render();
+  await persistSet('refs', item);
 }
 
 export async function deleteReferensi() {
   if (!editingRef) return;
   state.refs = state.refs.filter(x => x.id !== editingRef);
-  await persist('refs');
   closeModal('modal-referensi');
-  render();
+  await persistDelete('refs', editingRef);
 }
 
-// ── IGLPIS component ──────────────────────────────────────────
+// ── IGLPIS ────────────────────────────────────────────────────
 let editingIglpis = null;
 
 export function openIglpisModal(id) {
   editingIglpis = id || null;
   const c = id ? state.iglpis.find(x => x.id === id) : null;
-  document.getElementById('ig-modal-title').textContent  = c ? 'Edit Komponen' : 'Komponen Baru';
-  document.getElementById('ig-save-btn').textContent     = c ? 'Simpan'        : 'Tambah';
+  document.getElementById('ig-modal-title').textContent = c ? 'Edit Komponen' : 'Komponen Baru';
+  document.getElementById('ig-save-btn').textContent    = c ? 'Simpan'        : 'Tambah';
   document.getElementById('ig-phase').value     = c?.phase    || '';
   document.getElementById('ig-phase-num').value = c?.phaseNum || '';
   document.getElementById('ig-id').value        = c?.id       || '';
@@ -296,37 +266,30 @@ export async function saveIglpis() {
   const phase = document.getElementById('ig-phase').value.trim();
   if (!title || !phase) return;
   const newId = document.getElementById('ig-id').value.trim() || uid();
-  const entry = {
-    id:       newId,
-    phase,
+  const item = {
+    id: newId, phase,
     phaseNum: parseInt(document.getElementById('ig-phase-num').value) || 99,
-    title,
-    desc:     document.getElementById('ig-desc').value.trim(),
-    algos:    [...tempAlgos],
-    status:   document.getElementById('ig-status').value,
-    llm:      document.getElementById('ig-llm').checked,
-    note:     document.getElementById('ig-note').value.trim(),
+    title, desc: document.getElementById('ig-desc').value.trim(),
+    algos: [...tempAlgos], status: document.getElementById('ig-status').value,
+    llm: document.getElementById('ig-llm').checked,
+    note: document.getElementById('ig-note').value.trim(),
   };
   if (editingIglpis) {
     const idx = state.iglpis.findIndex(x => x.id === editingIglpis);
-    if (idx > -1) state.iglpis[idx] = entry;
-  } else {
-    state.iglpis.push(entry);
-  }
-  await persist('iglpis');
+    if (idx > -1) state.iglpis[idx] = item;
+  } else { state.iglpis.push(item); }
   closeModal('modal-iglpis');
-  render();
+  await persistSet('iglpis', item);
 }
 
 export async function deleteIglpis() {
   if (!editingIglpis) return;
   state.iglpis = state.iglpis.filter(x => x.id !== editingIglpis);
-  await persist('iglpis');
   closeModal('modal-iglpis');
-  render();
+  await persistDelete('iglpis', editingIglpis);
 }
 
-// ── Component note (quick note modal on IGLPIS item) ──────────
+// ── Component note ────────────────────────────────────────────
 let compNoteTarget = null;
 
 export function openCompNote(id) {
@@ -339,10 +302,15 @@ export function openCompNote(id) {
 
 export async function saveCompNote() {
   const c = state.iglpis.find(x => x.id === compNoteTarget);
-  if (c) {
-    c.note = document.getElementById('cn-body').value.trim();
-    await persist('iglpis');
-  }
+  if (!c) return;
+  c.note = document.getElementById('cn-body').value.trim();
   closeModal('modal-comp-note');
-  render();
+  await persistSet('iglpis', c);
+}
+
+export async function updateIglpisStatus(id, status) {
+  const c = state.iglpis.find(x => x.id === id);
+  if (!c) return;
+  c.status = status;
+  await persistSet('iglpis', c);
 }
