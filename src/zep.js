@@ -9,7 +9,7 @@ function getBackendURL() {
     return 'http://localhost:3001';
   }
   // Production - use Vercel backend API
-  return 'https://thesis-track-j6xfy37fl-babageo.vercel.app';
+  return 'https://thesis-track-alpha.vercel.app';
 }
 
 const BACKEND_API_URL = getBackendURL();
