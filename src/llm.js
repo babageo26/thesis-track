@@ -20,7 +20,7 @@ const BACKEND_API_URL = getBackendURL();
  * @param {Array} iglpisComponents - Daftar IGLPIS components untuk context
  * @returns {Promise<Object>} Parsed structured data
  */
-export async function parseProgressUpdate(userInput, iglpisComponents) {
+export async function parseProgressUpdate(userInput, state) {
   try {
     const response = await fetch(`${BACKEND_API_URL}/api/parse-progress`, {
       method: 'POST',
@@ -29,7 +29,7 @@ export async function parseProgressUpdate(userInput, iglpisComponents) {
       },
       body: JSON.stringify({
         userInput,
-        iglpisComponents,
+        state,
       }),
     });
 

@@ -30,10 +30,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Parse progress update
+// Parse progress update - Full CRUD semua collections
 app.post('/api/parse-progress', async (req, res) => {
   try {
-    const { userInput, iglpisComponents } = req.body;
+    const { userInput, state } = req.body;
 
     if (!userInput) {
       return res.status(400).json({ error: 'userInput is required' });
@@ -43,57 +43,127 @@ app.post('/api/parse-progress', async (req, res) => {
       return res.status(500).json({ error: 'OpenAI API key not configured' });
     }
 
-    const componentsList = (iglpisComponents || [])
-      .map(c => `${c.id}: ${c.title} (status: ${c.status})`)
+    const iglpisComponents = state?.iglpis || [];
+    const milestones       = state?.milestones || [];
+    const jurnal           = state?.jurnal || [];
+    const refs             = state?.refs || [];
+    const notes            = state?.notes || [];
+
+    const iglpisList = iglpisComponents
+      .map(c => `  ${c.id}: "${c.title}" (status: ${c.status}, note: "${c.note || '-'}")`)
       .join('\n');
 
-    const systemPrompt = `Anda adalah assistant untuk tracking progress tesis IGLPIS.
-User memberikan catatan progress dalam bahasa alami. Anda harus:
+    const milestonesList = milestones
+      .map(m => `  ${m.id}: "${m.title}" (progress: ${m.progress}%, deadline: ${m.deadline})`)
+      .join('\n');
 
-1. Identifikasi component IGLPIS mana yang di-refer (berdasarkan ID atau title)
-2. Extract status update (belum/riset/dikerjakan/testing/selesai)
-3. Extract notes/deskripsi perkembangan
-4. Identify jika ada milestones atau referensi yang perlu di-update
-5. Create jurnal entry jika relevan
+    const jurnalList = jurnal
+      .slice(-5)
+      .map(j => `  ${j.id}: "${j.title}" (${j.date})`)
+      .join('\n');
 
-Daftar IGLPIS Components:
-${componentsList}
+    const refsList = refs
+      .slice(-5)
+      .map(r => `  ${r.id}: "${r.title}" - ${r.author} (${r.year})`)
+      .join('\n');
 
-Respond HANYA dengan JSON (jangan ada text lain):
+    const notesList = notes
+      .slice(-5)
+      .map(n => `  ${n.id}: "${n.title}"`)
+      .join('\n');
+
+    const systemPrompt = `Anda adalah AI assistant untuk ThesisTrack, app tracking progress tesis IGLPIS.
+User memberikan instruksi dalam bahasa alami. Identifikasi operasi CRUD yang perlu dilakukan.
+
+=== DATA TERSEDIA ===
+
+IGLPIS Components (status: belum/riset/dikerjakan/testing/selesai):
+${iglpisList || '  (kosong)'}
+
+Milestones:
+${milestonesList || '  (kosong)'}
+
+Jurnal (5 terbaru):
+${jurnalList || '  (kosong)'}
+
+Referensi (5 terbaru):
+${refsList || '  (kosong)'}
+
+Quick Notes (5 terbaru):
+${notesList || '  (kosong)'}
+
+=== INSTRUKSI ===
+Respond HANYA dengan JSON valid (tidak ada text lain di luar JSON):
+
 {
-  "component_updates": [
-    {
-      "component_id": "4.2",
-      "status": "testing",
-      "note": "extracted note text"
-    }
+  "iglpis_updates": [
+    { "id": "4.2", "status": "testing", "note": "catatan baru" }
   ],
-  "create_jurnal": {
-    "title": "extracted title",
-    "body": "full description"
+  "milestones": {
+    "create": [
+      { "title": "judul", "desc": "deskripsi", "deadline": "YYYY-MM-DD", "progress": 0, "color": "#7C3AED" }
+    ],
+    "update": [
+      { "id": "existing-id", "title": "judul", "progress": 75, "deadline": "YYYY-MM-DD" }
+    ],
+    "delete": ["id-to-delete"]
   },
-  "summary": "brief summary of the update"
-}`;
+  "jurnal": {
+    "create": [
+      { "title": "judul jurnal", "body": "isi jurnal lengkap" }
+    ],
+    "update": [
+      { "id": "existing-id", "title": "judul baru", "body": "isi baru" }
+    ],
+    "delete": ["id-to-delete"]
+  },
+  "refs": {
+    "create": [
+      { "title": "judul paper", "author": "nama author", "year": "2024", "url": "", "tags": ["tag1"], "note": "" }
+    ],
+    "update": [
+      { "id": "existing-id", "title": "judul", "note": "catatan baru" }
+    ],
+    "delete": ["id-to-delete"]
+  },
+  "notes": {
+    "create": [
+      { "title": "judul note", "body": "isi note", "tags": ["tag1"], "color": "#7C3AED" }
+    ],
+    "update": [
+      { "id": "existing-id", "title": "judul", "body": "isi baru" }
+    ],
+    "delete": ["id-to-delete"]
+  },
+  "summary": "ringkasan singkat operasi yang dilakukan"
+}
+
+Hanya isi field yang relevan. Jika tidak ada operasi untuk suatu collection, beri array/object kosong.
+Untuk delete, gunakan ID yang EXACT dari data yang tersedia.
+Untuk create milestone, gunakan warna hex yang menarik.
+Jika user menyebut "hapus", "delete", "remove" → isi bagian delete yang relevan.
+Jika user menyebut "tambah", "buat", "create", "catat" → isi bagian create.
+Jika user menyebut "update", "ubah", "ganti", "edit" → isi bagian update.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        {
-          role: 'user',
-          content: userInput,
-        },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userInput },
       ],
-      temperature: 0.7,
-      max_tokens: 1000,
+      temperature: 0.3,
+      max_tokens: 2000,
     });
 
     const content = response.choices[0]?.message?.content || '{}';
-    const parsed = JSON.parse(content);
 
+    // Clean JSON jika ada markdown code block
+    const cleaned = content
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+
+    const parsed = JSON.parse(cleaned);
     res.json(parsed);
   } catch (err) {
     console.error('Parse error:', err);

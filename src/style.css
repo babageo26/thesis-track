@@ -963,3 +963,48 @@ input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--purple); c
     transform: translateY(0);
   }
 }
+
+/* ── LLM Welcome & Examples ────────────────────────── */
+.llm-welcome {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text2);
+}
+
+.llm-example {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.llm-example:hover {
+  background: var(--bg4);
+  border-color: var(--purple);
+  color: var(--text);
+}
+
+.btn-ghost {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-ghost:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+
+.llm-message.system .llm-message-content {
+  white-space: pre-line;
+}
