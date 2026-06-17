@@ -1,14 +1,10 @@
 {
-  "builds": [
+  "buildCommand": "cd backend && npm install",
+  "outputDirectory": "backend",
+  "rewrites": [
     {
-      "src": "backend/server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/server.js"
+      "source": "/(.*)",
+      "destination": "/server.js"
     }
   ]
 }
