@@ -10,14 +10,15 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://babageo26.github.io',
-  ],
-  credentials: true,
+  origin: '*',
+  credentials: false,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
+
+// Explicit preflight handler
+app.options('*', cors());
 
 // Initialize OpenAI
 const openai = new OpenAI({
