@@ -19,6 +19,7 @@ import { initBackdrops, handleTagKey,
 import { renderDashboard, renderJurnal,
          renderMilestone, renderReferensi,
          renderNotes, renderIglpis }         from './pages.js';
+import { renderLLMPage }                     from './llm-page.js';
 import { today, formatDate }                 from './utils.js';
 
 // ── Build app shell ───────────────────────────────────────────
@@ -35,6 +36,7 @@ function buildShell(user) {
       </div>
       <ul class="nav-list" id="nav">
         <li class="nav-item active" data-page="dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</li>
+        <li class="nav-item" data-page="llm"><i class="ti ti-robot"></i> AI Progress</li>
         <li class="nav-item" data-page="jurnal"><i class="ti ti-book"></i> Jurnal</li>
         <li class="nav-item" data-page="milestone"><i class="ti ti-target"></i> Milestone</li>
         <li class="nav-item" data-page="referensi"><i class="ti ti-books"></i> Referensi</li>
@@ -103,6 +105,7 @@ let currentPage = 'dashboard';
 
 const PAGE_META = {
   dashboard: { title: 'Dashboard',           sub: formatDate(today()) },
+  llm:       { title: 'AI Progress Tracker', sub: 'Chat natural language untuk update progress' },
   jurnal:    { title: 'Jurnal Riset',         sub: 'Catatan harian riset' },
   milestone: { title: 'Milestone & Deadline', sub: 'Tracking bab & tahap tesis' },
   referensi: { title: 'Referensi',            sub: 'Daftar referensi & bahan bacaan' },
@@ -127,6 +130,7 @@ export function render() {
   if (!c) return;
   const pages = {
     dashboard: renderDashboard,
+    llm:       renderLLMPage,
     jurnal:    renderJurnal,
     milestone: renderMilestone,
     referensi: renderReferensi,
