@@ -7,3 +7,4 @@ dist
 *.log
 backend/.env
 backend/node_modules
+.vercel
