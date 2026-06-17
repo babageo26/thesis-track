@@ -1,10 +1,17 @@
 // ============================================================
-//  zep.js — ZEP Memory API integration
+//  zep.js — ZEP Memory API integration (via Backend)
 //  ThesisTrack · Context & Conversation History
 // ============================================================
 
-const ZEP_API_KEY = import.meta.env.VITE_ZEP_API_KEY;
-const ZEP_API_URL = 'https://api.getzep.com/api/v1';
+// Backend API URL
+function getBackendURL() {
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:3001';
+  }
+  return window.location.origin;
+}
+
+const BACKEND_API_URL = getBackendURL();
 
 // Create unique session ID based on user & date
 export function getSessionId(userId) {
@@ -13,39 +20,29 @@ export function getSessionId(userId) {
 }
 
 /**
- * Add message ke ZEP memory
+ * Add message ke ZEP memory via Backend
  * @param {string} sessionId - Session identifier
  * @param {string} role - 'user' or 'assistant'
  * @param {string} content - Message content
  * @param {Object} metadata - Optional metadata
  */
 export async function addMessageToMemory(sessionId, role, content, metadata = {}) {
-  if (!ZEP_API_KEY) {
-    console.warn('ZEP API key not configured, skipping memory storage');
-    return null;
-  }
-
   try {
-    const response = await fetch(`${ZEP_API_URL}/sessions/${sessionId}/memory`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/memory/add`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ZEP_API_KEY}`,
       },
       body: JSON.stringify({
-        messages: [
-          {
-            role,
-            content,
-            timestamp: new Date().toISOString(),
-          },
-        ],
+        sessionId,
+        role,
+        content,
         metadata,
       }),
     });
 
     if (!response.ok) {
-      console.error('ZEP API Error:', response.status);
+      console.error('Backend memory API Error:', response.status);
       return null;
     }
 
@@ -57,27 +54,22 @@ export async function addMessageToMemory(sessionId, role, content, metadata = {}
 }
 
 /**
- * Get session memory dari ZEP
+ * Get session memory dari ZEP via Backend
  * @param {string} sessionId - Session identifier
  * @returns {Promise<Object>} Session memory data
  */
 export async function getSessionMemory(sessionId) {
-  if (!ZEP_API_KEY) {
-    console.warn('ZEP API key not configured');
-    return null;
-  }
-
   try {
-    const response = await fetch(`${ZEP_API_URL}/sessions/${sessionId}`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/memory/session/${sessionId}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${ZEP_API_KEY}`,
+        'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
       if (response.status === 404) return null;
-      console.error('ZEP API Error:', response.status);
+      console.error('Backend memory API Error:', response.status);
       return null;
     }
 
@@ -89,67 +81,46 @@ export async function getSessionMemory(sessionId) {
 }
 
 /**
- * Save progress context ke ZEP sebagai summary
+ * Save progress context ke ZEP sebagai summary via Backend
  * @param {string} sessionId - Session identifier
  * @param {Array} componentUpdates - Component updates
  * @param {string} summary - Summary text
  */
 export async function saveProgressContext(sessionId, componentUpdates, summary) {
-  if (!ZEP_API_KEY) {
-    console.warn('ZEP API key not configured');
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/api/memory/context`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sessionId,
+        componentUpdates,
+        summary,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Backend memory API Error:', response.status);
+      return null;
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('Error saving progress context:', err);
     return null;
   }
-
-  const contextText = `
-Progress Update Summary:
-${summary}
-
-Components Updated:
-${componentUpdates.map(u => `- ${u.component_id}: ${u.status} (${u.note})`).join('\n')}
-
-Timestamp: ${new Date().toISOString()}
-  `.trim();
-
-  return addMessageToMemory(sessionId, 'system', contextText, {
-    type: 'progress_context',
-    component_count: componentUpdates.length,
-  });
 }
 
 /**
  * Search memory untuk relevant context
+ * Catatan: Tidak diimplementasi di backend untuk sekarang
  * @param {string} sessionId - Session identifier
  * @param {string} query - Search query
  * @returns {Promise<Array>} Search results
  */
 export async function searchMemory(sessionId, query) {
-  if (!ZEP_API_KEY) {
-    console.warn('ZEP API key not configured');
-    return [];
-  }
-
-  try {
-    const response = await fetch(`${ZEP_API_URL}/sessions/${sessionId}/search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ZEP_API_KEY}`,
-      },
-      body: JSON.stringify({
-        text: query,
-        limit: 5,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('ZEP Search Error:', response.status);
-      return [];
-    }
-
-    const data = await response.json();
-    return data.results || [];
-  } catch (err) {
-    console.error('Error searching memory:', err);
-    return [];
-  }
+  // TODO: Implement search endpoint di backend jika diperlukan
+  console.log('Search memory not yet implemented. Session:', sessionId, 'Query:', query);
+  return [];
 }
