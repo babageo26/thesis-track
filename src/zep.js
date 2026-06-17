@@ -8,7 +8,8 @@ function getBackendURL() {
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     return 'http://localhost:3001';
   }
-  return window.location.origin;
+  // Production - use Vercel backend API
+  return 'https://thesis-track-j6xfy37fl-babageo.vercel.app';
 }
 
 const BACKEND_API_URL = getBackendURL();
